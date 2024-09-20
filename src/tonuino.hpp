@@ -11,6 +11,7 @@
 #include "mp3.hpp"
 #include "modifier.hpp"
 #include "timer.hpp"
+#include "batVoltage.hpp"
 #ifdef NEO_RING
 #include "ring.hpp"
 #endif
@@ -66,6 +67,12 @@ public:
 
   uint16_t getNumTracksInFolder() const {return numTracksInFolder; }
 
+#ifdef BT_MODULE
+  bool isBtModuleOn() { return btModuleOn; }
+  void switchBtModuleOnOff();
+  void btModulePairing();
+#endif
+
 private:
 
   void checkStandby();
@@ -75,6 +82,9 @@ private:
   Settings             settings            {};
   Mp3                  mp3                 {settings};
   Buttons              buttons             {};
+#ifdef BAT_VOLTAGE_MEASUREMENT
+       BatVoltage      batVoltage          {mp3};
+#endif
 #ifdef SerialInputAsCommand
   SerialInput          serialInput         {};
 #endif
@@ -85,7 +95,7 @@ private:
   RotaryEncoder        rotaryEncoder       {settings};
 #endif
 #ifdef POTI
-  Poti                 poti                {settings, mp3};
+  Poti                 poti                {mp3};
 #endif
   Commands             commands            {
                                             settings
@@ -110,14 +120,12 @@ private:
 
   friend class Base;
 
-  Modifier             noneModifier        {*this, mp3};
-  SleepTimer           sleepTimer          {*this, mp3};
-  FreezeDance          freezeDance         {*this, mp3};
-  Locked               locked              {*this, mp3};
-  ToddlerMode          toddlerMode         {*this, mp3};
-  KindergardenMode     kindergardenMode    {*this, mp3};
-  RepeatSingleModifier repeatSingleModifier{*this, mp3};
-  //FeedbackModifier     feedbackModifier    {*this, mp3};
+  Modifier             noneModifier        {};
+  SleepTimer           sleepTimer          {};
+  DanceGame            danceGame           {};
+  ToddlerMode          toddlerMode         {};
+  KindergardenMode     kindergardenMode    {};
+  RepeatSingleModifier repeatSingleModifier{};
 
   Modifier*            activeModifier      {&noneModifier};
 
@@ -126,6 +134,11 @@ private:
   folderSettings       myFolder            {};
   bool                 myFolderIsCard      {};
   uint16_t             numTracksInFolder   {};
+
+#ifdef BT_MODULE
+  bool                 btModuleOn          {};
+  Timer                btModulePairingTimer{};
+#endif
 };
 
 #endif /* SRC_TONUINO_HPP_ */

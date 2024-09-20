@@ -10,11 +10,10 @@
 #include "queue.hpp"
 #include "timer.hpp"
 
-#ifdef DFPlayerUsesSoftwareSerial // make sure to include "constants.hpp" before this line!
+#ifndef DFPlayerUsesHardwareSerial // make sure to include "constants.hpp" before this line!
 #include <SoftwareSerial.h>
 using SerialType = SoftwareSerial;
-#endif // DFPlayerUsesSoftwareSerial
-#ifdef DFPlayerUsesHardwareSerial
+#else
 using SerialType = HardwareSerial;
 #endif // DFPlayerUsesHardwareSerial
 
@@ -26,6 +25,10 @@ class Mp3Notify;
 #endif
 #ifdef DFMiniMp3_T_CHIP_Mp3ChipIncongruousNoAck
 #define DFMiniMp3_T_CHIP_VARIANT Mp3ChipIncongruousNoAck
+#endif
+
+#if defined(DFMiniMp3_T_CHIP_GD3200B) or defined(DFMiniMp3_T_CHIP_LISP3) or defined(DFMiniMp3_T_CHIP_MH2024K24SS_MP3_TF_16P_V3_0)
+#define DFMiniMp3_IGNORE_ONPLAYFINISHED_FOR_ADV
 #endif
 
 // define a handy type using serial and our notify class
@@ -54,6 +57,7 @@ enum class mp3Tracks: uint16_t {
   t_321_mode_repeat_last_card  = 321,
   t_322_mode_quiz_game         = 322,
   t_323_mode_memory_game       = 323,
+  t_324_mode_switch_bt         = 324,
   t_327_select_file            = 327,
   t_328_select_first_file      = 328,
   t_329_select_last_file       = 329,
@@ -66,6 +70,7 @@ enum class mp3Tracks: uint16_t {
   t_336_num_answer_2_1         = 336,
   t_337_num_answer_4_1         = 337,
   t_338_num_answer_0_1         = 338,
+  t_340_num_tracks             = 340,
   t_400_ok                     = 400,
   t_401_error                  = 401,
   t_402_ok_settings            = 402,
@@ -119,6 +124,7 @@ enum class mp3Tracks: uint16_t {
   t_935_yes                    = 935,
   t_936_batch_cards_intro      = 936,
   t_937_memory_game_cards_intro= 937,
+  t_938_modifier_sleep_mode    = 938,
   t_940_shortcut_into          = 940,
   t_941_pause                  = 941,
   t_942_up                     = 942,
@@ -130,6 +136,10 @@ enum class mp3Tracks: uint16_t {
   t_963_timer_30               = 963,
   t_964_timer_60               = 964,
   t_965_timer_disabled         = 965,
+  t_966_dance_pause_intro      = 966,
+  t_967_dance_pause_15_30      = 967,
+  t_968_dance_pause_25_40      = 968,
+  t_969_dance_pause_35_50      = 969,
   t_970_modifier_Intro         = 970,
   t_971_modifier_SleepTimer    = 971,
   t_972_modifier_FreezeDance   = 972,
@@ -137,6 +147,7 @@ enum class mp3Tracks: uint16_t {
   t_974_modifier_Toddler       = 974,
   t_975_modifier_KinderGarden  = 975,
   t_976_modifier_repeat1       = 976,
+  t_977_modifier_bluetooth     = 977,
   t_980_admin_lock_intro       = 980,
   t_981_admin_lock_disabled    = 981,
   t_982_admin_lock_card        = 982,
@@ -158,9 +169,15 @@ enum class advertTracks: uint16_t {
   t_300_freeze_into            = 300,
   t_301_freeze_freeze          = 301,
   t_302_sleep                  = 302,
-  t_303_locked                 = 303,
+  t_303_fi_wa_ai               = 303,
   t_304_buttonslocked          = 304,
   t_305_kindergarden           = 305,
+  t_306_fire                   = 306,
+  t_307_water                  = 307,
+  t_308_air                    = 308,
+  t_320_bt_on                  = 320,
+  t_321_bt_off                 = 321,
+  t_322_bt_pairing             = 322,
 };
 
 // implement a notification class,
@@ -184,7 +201,7 @@ class Mp3: public DfMp3 {
 public:
   using Base = DfMp3;
 
-  Mp3(const Settings& settings);
+  Mp3(Settings& settings);
 
   bool isPlaying() const;
   void waitForTrackToFinish();
@@ -197,7 +214,7 @@ public:
   void clearAllQueue() { clearFolderQueue(); clearMp3Queue(); }
   bool isPlayingFolder() { return playing == play_folder; }
   bool isPlayingMp3   () { return playing == play_mp3   ; }
-#ifdef DFMiniMp3_T_CHIP_LISP3
+#ifdef DFMiniMp3_IGNORE_ONPLAYFINISHED_FOR_ADV
   bool resetPlayingAdv() { bool ret = advPlaying; advPlaying = false; return ret; }
 #endif
   // firstTrack and lastTrack -> index in folder starting with 1
@@ -223,10 +240,20 @@ public:
   void setVolume     ();
   void setVolume     (uint8_t);
 #ifdef NEO_RING_EXT
-  uint8_t getVolumeRel() const { return static_cast<uint16_t>(volume-settings.minVolume)*0xff/(settings.maxVolume-settings.minVolume); }
+  uint8_t getVolumeRel() const { return static_cast<uint16_t>(*volume-*minVolume)*0xff/(*maxVolume-*minVolume); }
   bool volumeChanged () { return not volumeChangedTimer.isExpired(); }
 #endif // NEO_RING_EXT
   void loop          ();
+
+  uint8_t& getVolume    () { return *volume    ; }
+  uint8_t& getMaxVolume () { return *maxVolume ; }
+  uint8_t& getMinVolume () { return *minVolume ; }
+  uint8_t& getInitVolume() { return *initVolume; }
+
+#ifdef HPJACKDETECT
+  bool isHeadphoneJackDetect() { return noHeadphoneJackDetect == level::inactive; }
+  void setTempSpkOn()          { tempSpkOn = 2; }
+#endif
 
 private:
   friend class tonuino_fixture;
@@ -235,12 +262,19 @@ private:
 
   typedef queue<uint8_t, maxTracksInFolder> track_queue;
 
-#ifdef DFPlayerUsesSoftwareSerial
+#ifndef DFPlayerUsesHardwareSerial
   SoftwareSerial       softwareSerial;
-#endif /* DFPlayerUsesSoftwareSerial */
-  const Settings&      settings;
+#endif /* not DFPlayerUsesHardwareSerial */
+  Settings&            settings;
 
-  uint8_t              volume{};
+  uint8_t              spkVolume{};
+#ifdef HPJACKDETECT
+  uint8_t              hpVolume{};
+#endif
+  uint8_t*             volume    {&spkVolume};
+  uint8_t*             maxVolume {&settings.spkMaxVolume};
+  uint8_t*             minVolume {&settings.spkMinVolume};
+  uint8_t*             initVolume{&settings.spkInitVolume};
 #ifdef NEO_RING_EXT
   Timer                volumeChangedTimer{};
 #endif // NEO_RING_EXT
@@ -264,8 +298,13 @@ private:
   Timer                startTrackTimer{};
   Timer                missingOnPlayFinishedTimer{};
   bool                 isPause{};
-#ifdef DFMiniMp3_T_CHIP_LISP3
+#ifdef DFMiniMp3_IGNORE_ONPLAYFINISHED_FOR_ADV
   bool                 advPlaying{false};
+#endif
+
+#ifdef HPJACKDETECT
+  level                noHeadphoneJackDetect{level::unknown};
+  uint8_t              tempSpkOn{};
 #endif
 
 };

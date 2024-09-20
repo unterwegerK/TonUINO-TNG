@@ -12,19 +12,22 @@ Allgemeine Anleitungen zum Einrichten der IDE findet man hier [www.tonuino.de/TN
 
 - Es ist unbedingt darauf zu achten, das das Verzeichnis in das das Repository gecloned oder heruntergeladen wird (also das Verzeichnis, in dem schließlich auch die TonUINO-TNG.ino zu finden ist, genau so heißt, wie die ino Datei, also in diesem Fall "TonUINO-TNG"!
 
-- Bei der classic und AiO HW Variante muss die Datei 'platform.local.txt' in den avr HW Ordner kopiert werden. Dieser Ordner ist gewöhnlich folgender:  
+- Bei der classic (Nano und Every) und AiO HW Variante muss die Datei 'platform.local.txt' in den avr HW Ordner kopiert werden. Dieser Ordner ist gewöhnlich folgender:  
 
 ```
     Windows:  
       Classic:  C:\Users\<Benutzer>\AppData\Local\Arduino15\packages\arduino\hardware\avr\1.8.6
+      Every:    C:\Users\<Benutzer>\AppData\Local\Arduino15\packages\arduino\hardware\megaavr\1.8.8
       AiO:      C:\Users\<Benutzer>\AppData\Local\Arduino15\packages\LGT8fx Boards\hardware\avr\1.0.7
 
     Linux:  
       Classic:  ~/.arduino15/packages/arduino/hardware/avr/1.8.6
+      Every:    ~/.arduino15/packages/arduino/hardware/megaavr/1.8.8
       Aio:      ~/.arduino15/packages/LGT8fx Boards/hardware/avr/1.0.7
 
     MacOS 13.x:  
       Classic:  ~/Library/Arduino15/packages/arduino/hardware/avr/1.8.6
+      Every:    ~/Library/Arduino15/packages/arduino/hardware/megaavr/1.8.8
       AiO:      ~/Library/Arduino15/packages/LGT8fx Boards/hardware/avr/1.0.7
 ```
 
@@ -46,16 +49,11 @@ Allgemeine Anleitungen zum Einrichten der IDE findet man hier [www.tonuino.de/TN
 - Es werden die gleichen HW Varianten angeboten wie beim Online Upload ohne die Datei constants.hpp editieren zu müssen
 
 ```
-  Classic 
+  Classic, Every, AiO und AiOplus
     3 Buttons
     5 Buttons
     3x3 Button Board
-  AiO und AiOplus
-    5 Buttons
-    3x3 Button Board
 ```
-
-- wenn man die AiO oder AiOplus mit 3 Buttons hat, muss man in der Datei constants.hpp den Kommentar bei `#define THREEBUTTONS` entfernen. 
 
 **Verwendung zusammen mit Visual Code**
 
@@ -88,11 +86,54 @@ Eine Anleitung dafür findet man [hier](https://discourse.voss.earth/t/tonuino-s
 
 # Installation
 
-Die SD Karte (Ordner mp3 und advert) hat sich gegenüber der Version 3.1.6 geändert. Hier kann man die Dateien downloaden: [tonuino.github.io/TonUINO-TNG/sd-card.zip](https://tonuino.github.io/TonUINO-TNG/sd-card.zip)
+Die SD Karte (Ordner mp3 und advert) hat sich gegenüber der Version 3.1.11 geändert. Hier kann man die Dateien downloaden: [tonuino.github.io/TonUINO-TNG/sd-card.zip](https://tonuino.github.io/TonUINO-TNG/sd-card.zip)
 
 # Change Log
 
-## Version 3.1.7 (01.03.2024)
+## Version 3.2.0 (05.09.2024)
+- [Issue 231](https://github.com/tonuino/TonUINO-TNG/issues/231): Fix logging of card data (bad order)
+- [Issue 229](https://github.com/tonuino/TonUINO-TNG/issues/229): playAdvertisement does not work for some DF Player
+- [Issue 228](https://github.com/tonuino/TonUINO-TNG/issues/228): NeoPixel for two Rings with Sleep modification card: no update on one ring
+- [Issue 226](https://github.com/tonuino/TonUINO-TNG/issues/226): Use MegaCoreX as Board package for Nano Every instead of Arduino megaAVR Boards
+- [Issue 225](https://github.com/tonuino/TonUINO-TNG/issues/225): Support Nano Every with Atmega4808
+
+## Version 3.1.12 (22.08.2024)
+- [Issue 222](https://github.com/tonuino/TonUINO-TNG/issues/222): Fix bug: TB modification card ends active game modification card
+- [Issue 220](https://github.com/tonuino/TonUINO-TNG/issues/220): New shortcut for switching BT on/off
+- [Issue 219](https://github.com/tonuino/TonUINO-TNG/issues/219): Disable modification cards during quiz and memory game
+
+## Version 3.1.11 (31.07.2024)
+- [Issue 212](https://github.com/tonuino/TonUINO-TNG/issues/212): Sleep Timer Modification card doesn't work properly with NeoPixel Ring
+- [Issue 215](https://github.com/tonuino/TonUINO-TNG/issues/215): New optional Feature: Support BT Modul
+- [Issue 217](https://github.com/tonuino/TonUINO-TNG/issues/217): Improve and fix handling of some DF Player
+
+## Version 3.1.10 (27.06.2024)
+- [Issue 210](https://github.com/tonuino/TonUINO-TNG/issues/210): Make text in the admin menu for switching volume button more clearer
+
+## Version 3.1.9 (05.06.2024)
+- [Issue 207](https://github.com/tonuino/TonUINO-TNG/issues/207): Use poti for setting the volume: add threshold to prevent continuously switching volume
+- [Issue 205](https://github.com/tonuino/TonUINO-TNG/issues/205): Implement the game "Feuer, Wasser, Luft" as modification card
+
+## Version 3.1.8 (26.04.2024)
+- [Issue 202](https://github.com/tonuino/TonUINO-TNG/issues/202): Enhance modifier card SleepTimer to stop only after the track finished
+- [Issue 200](https://github.com/tonuino/TonUINO-TNG/issues/200): Add possibility to use Pololu-Powerswitch for shutdown
+- [Issue 196](https://github.com/tonuino/TonUINO-TNG/issues/196): Enhance Hoerbuch_1 mode to play more tracks
+- [Issue 197](https://github.com/tonuino/TonUINO-TNG/issues/197): SPECIAL_START_SHORTCUT: pin A6 cannot be read digital on Nano
+
+## Version 3.1.7 (11.04.2024)
+- [Issue 193](https://github.com/tonuino/TonUINO-TNG/issues/193): Hoerbuch mode: after playing last track it does not change to first track on next start
+- [Issue 190](https://github.com/tonuino/TonUINO-TNG/issues/190): Neo Pixel Ring: Add the possibility to have 2 rings remains
+- [Issue 188](https://github.com/tonuino/TonUINO-TNG/issues/188): Pause when card removed modus: do not go to Play via button if card is not present
+
+## Version 3.1.7 (29.03.2024)
+- [Issue 184](https://github.com/tonuino/TonUINO-TNG/issues/184): #define DONT_ACCEPT_SAME_RFID_TWICE makes the error: 'class Tonuino' has no member named 'getCard'
+- [Issue 181](https://github.com/tonuino/TonUINO-TNG/issues/181): Implement battery voltage measurement
+- [Issue 180](https://github.com/tonuino/TonUINO-TNG/issues/180): Play special shortcut on startup if a GPIO is set
+- [Issue 056](https://github.com/tonuino/TonUINO-TNG/issues/56): Implement headphone jack detection
+- [Issue 178](https://github.com/tonuino/TonUINO-TNG/issues/178): Use Nano Every optional with HW Serial connection to the DfPlayer
+
+## Version 3.1.7 (25.03.2024)
+- [Issue 182](https://github.com/tonuino/TonUINO-TNG/issues/182): Quiz game: do not repeat a question until no question remains
 - [Issue 176](https://github.com/tonuino/TonUINO-TNG/issues/176): Implement the memory game
 
 ## Version 3.1.6 (18.02.2024)

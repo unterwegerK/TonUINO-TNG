@@ -40,8 +40,8 @@ void Tonuino::setup() {
   sei();//allow interrupts
 #endif
 
-#ifdef BUTTONS3X3
-#if defined(ALLinONE_Plus) or defined(TonUINO_Every)
+#if defined(BUTTONS3X3) or defined(BAT_VOLTAGE_MEASUREMENT)
+#if defined(ALLinONE_Plus) or defined(TonUINO_Every) or defined(TonUINO_Every_4808)
   analogReference(INTERNAL2V5);
 #endif
 #ifdef ALLinONE
@@ -55,7 +55,7 @@ void Tonuino::setup() {
 
   randomSeed(generateRamdomSeed());
 
-#if defined ALLinONE || defined ALLinONE_Plus || defined SPKONOFF
+#if defined SPKONOFF
   pinMode(ampEnablePin, OUTPUT);
   digitalWrite(ampEnablePin, getLevel(ampEnablePinType, level::inactive));
 #endif
@@ -64,6 +64,17 @@ void Tonuino::setup() {
   pinMode(usbAccessPin, OUTPUT);
   digitalWrite(usbAccessPin, getLevel(usbAccessPinType, level::inactive));
 #endif
+
+#ifdef SPECIAL_START_SHORTCUT
+  pinMode(specialStartShortcutPin, INPUT);
+#endif
+
+#ifdef BT_MODULE
+  pinMode(btModuleOnPin          , OUTPUT);
+  pinMode(btModulePairingPin     , OUTPUT);
+  digitalWrite(btModuleOnPin     , getLevel(btModuleOnPinType     , level::inactive));
+  digitalWrite(btModulePairingPin, getLevel(btModulePairingPinType, level::inactive));
+#endif // BT_MODULE
 
 #ifdef NEO_RING
   ring.init();
@@ -80,8 +91,6 @@ void Tonuino::setup() {
   // DFPlayer Mini initialisieren
   mp3.begin();
   delay(2000);
-  mp3.setVolume();
-  mp3.setEq(static_cast<DfMp3_Eq>(settings.eq - 1));
 
   // NFC Leser initialisieren
   chip_card.initCard();
@@ -92,22 +101,56 @@ void Tonuino::setup() {
     settings.loadSettingsFromFlash();
   }
 
-  SM_tonuino::start();
-#if defined ALLinONE || defined ALLinONE_Plus || defined SPKONOFF
+  // DFPlayer Mini initialisieren (2)
+#if defined SPKONOFF
   digitalWrite(ampEnablePin, getLevel(ampEnablePinType, level::active));
 #endif
+  mp3.setVolume();
+  mp3.setEq(static_cast<DfMp3_Eq>(settings.eq - 1));
+  mp3.loop();
+
+  SM_tonuino::start();
 
   // ignore commands, if buttons already pressed during startup
   commands.getCommandRaw();
 
   // Start Shortcut "at Startup" - e.g. Welcome Sound
-  SM_tonuino::dispatch(command_e(commandRaw::start));
+#ifdef SPECIAL_START_SHORTCUT
+
+#ifdef TonUINO_Classic
+  if (getLevel(specialStartShortcutPinType, (analogRead(specialStartShortcutPin)<512)?0:1) == level::active) {
+#else // TonUINO_Classic
+  if (getLevel(specialStartShortcutPinType, digitalRead(specialStartShortcutPin)) == level::active) {
+#endif // TonUINO_Classic
+
+#ifdef HPJACKDETECT
+    mp3.setTempSpkOn();
+#endif // HPJACKDETECT
+    SM_tonuino::dispatch(command_e(commandRaw::specialStart));
+  } else
+
+#endif // SPECIAL_START_SHORTCUT
+
+    SM_tonuino::dispatch(command_e(commandRaw::start));
 }
 
 void Tonuino::loop() {
 
   unsigned long  start_cycle = millis();
   checkStandby();
+
+  static bool is_playing = false;
+  LOG_CODE(play_log, s_info, {
+    if (is_playing != mp3.isPlaying()) {
+      is_playing = !is_playing;
+      LOG(play_log, s_info, F("isPlaying: "), is_playing);
+    }
+  } );
+
+#ifdef BAT_VOLTAGE_MEASUREMENT
+  if (batVoltage.check())
+    shutdown();
+#endif
 
   mp3.loop();
 
@@ -136,11 +179,21 @@ void Tonuino::loop() {
     ring.call_on_pause();
 #ifdef QUIZ_GAME
   else if (SM_tonuino::is_in_state<Quiz>())
-    ring.call_on_quiz();
+    ring.call_on_game();
 #endif // QUIZ_GAME
+#ifdef MEMORY_GAME
+  else if (SM_tonuino::is_in_state<Memory>())
+    ring.call_on_game();
+#endif // MEMORY_GAME
   else // admin menu
     ring.call_on_admin();
 #endif // NEO_RING
+
+#ifdef BT_MODULE
+  if (btModulePairingTimer.isActive() && btModulePairingTimer.isExpired())
+    digitalWrite(btModulePairingPin, getLevel(btModulePairingPinType, level::inactive));
+#endif // BT_MODULE
+
 
   unsigned long  stop_cycle = millis();
 
@@ -231,15 +284,20 @@ void Tonuino::playTrackNumber () {
 // Leider kann das Modul selbst keine Queue abspielen, daher müssen wir selbst die Queue verwalten
 void Tonuino::nextTrack(uint8_t tracks, bool fromOnPlayFinished) {
   LOG(play_log, s_info, F("nextTrack"));
-  if (activeModifier->handleNext())
-    return;
-  if (fromOnPlayFinished && mp3.isPlayingFolder() && myFolder.mode == pmode_t::hoerbuch_1) {
+  if (fromOnPlayFinished && mp3.isPlayingFolder() && (myFolder.mode == pmode_t::hoerbuch || myFolder.mode == pmode_t::hoerbuch_1)) {
     const uint8_t trackToSave = (mp3.getCurrentTrack() < numTracksInFolder) ? mp3.getCurrentTrack()+1 : 1;
     settings.writeFolderSettingToFlash(myFolder.folder, trackToSave);
-    mp3.clearFolderQueue();
+    if (myFolder.mode == pmode_t::hoerbuch_1) {
+      if (myFolder.special > 0)
+        --myFolder.special;
+      else
+        mp3.clearFolderQueue();
+    }
   }
+  if (activeModifier->handleNext())
+    return;
   mp3.playNext(tracks, fromOnPlayFinished);
-  if (mp3.isPlayingFolder() && (myFolder.mode == pmode_t::hoerbuch || myFolder.mode == pmode_t::hoerbuch_1)) {
+  if (not fromOnPlayFinished && mp3.isPlayingFolder() && (myFolder.mode == pmode_t::hoerbuch || myFolder.mode == pmode_t::hoerbuch_1)) {
     settings.writeFolderSettingToFlash(myFolder.folder, mp3.getCurrentTrack());
   }
 }
@@ -284,7 +342,7 @@ void Tonuino::shutdown() {
   ring.call_on_sleep();
 #endif
 
-#if defined ALLinONE || defined ALLinONE_Plus || defined SPKONOFF
+#if defined SPKONOFF
   digitalWrite(ampEnablePin, getLevel(ampEnablePinType, level::inactive));
   delay(1000);
 #endif
@@ -303,6 +361,25 @@ void Tonuino::shutdown() {
   sleep_mode();
 }
 
+#ifdef BT_MODULE
+void Tonuino::switchBtModuleOnOff() {
+  btModuleOn = not btModuleOn;
+  if (btModuleOn)
+    mp3.playAdvertisement(advertTracks::t_320_bt_on , false/*olnyIfIsPlaying*/);
+  else
+    mp3.playAdvertisement(advertTracks::t_321_bt_off, false/*olnyIfIsPlaying*/);
+  digitalWrite(btModuleOnPin, getLevel(btModuleOnPinType, btModuleOn ? level::active : level::inactive));
+}
+
+void Tonuino::btModulePairing() {
+  if (not btModulePairingTimer.isActive()) {
+    mp3.playAdvertisement(advertTracks::t_322_bt_pairing, false/*olnyIfIsPlaying*/);
+    btModulePairingTimer.start(btModulePairingPulse);
+    digitalWrite(btModulePairingPin, getLevel(btModulePairingPinType, level::active));
+  }
+}
+#endif // BT_MODULE
+
 bool Tonuino::specialCard(const folderSettings &nfcTag) {
   LOG(card_log, s_debug, F("special card, mode = "), static_cast<uint8_t>(nfcTag.mode));
   if (activeModifier->getActive() == nfcTag.mode) {
@@ -312,6 +389,16 @@ bool Tonuino::specialCard(const folderSettings &nfcTag) {
     return true;
   }
 
+#ifdef QUIZ_GAME
+  if (SM_tonuino::is_in_state<Quiz>() && nfcTag.mode != pmode_t::bt_module)
+    return false;
+#endif // QUIZ_GAME
+#ifdef MEMORY_GAME
+  if (SM_tonuino::is_in_state<Memory>() && nfcTag.mode != pmode_t::bt_module)
+    return false;
+#endif // MEMORY_GAME
+
+
   switch (nfcTag.mode) {
   case pmode_t::sleep_timer:  LOG(card_log, s_info, F("act. sleepTimer"));
                               mp3.playAdvertisement(advertTracks::t_302_sleep            , false/*olnyIfIsPlaying*/);
@@ -320,12 +407,12 @@ bool Tonuino::specialCard(const folderSettings &nfcTag) {
 
   case pmode_t::freeze_dance: LOG(card_log, s_info, F("act. freezeDance"));
                               mp3.playAdvertisement(advertTracks::t_300_freeze_into      , false/*olnyIfIsPlaying*/);
-                              activeModifier = &freezeDance;
+                              activeModifier = &danceGame;
                               break;
 
-  case pmode_t::locked:       LOG(card_log, s_info, F("act. locked"));
-                              mp3.playAdvertisement(advertTracks::t_303_locked           , false/*olnyIfIsPlaying*/);
-                              activeModifier = &locked;
+  case pmode_t::fi_wa_ai:     LOG(card_log, s_info, F("act. FeWaLu"));
+                              mp3.playAdvertisement(advertTracks::t_303_fi_wa_ai         , false/*olnyIfIsPlaying*/);
+                              activeModifier = &danceGame;
                               break;
 
   case pmode_t::toddler:      LOG(card_log, s_info, F("act. toddlerMode"));
@@ -343,9 +430,15 @@ bool Tonuino::specialCard(const folderSettings &nfcTag) {
                               activeModifier = &repeatSingleModifier;
                               break;
 
+#ifdef BT_MODULE
+  case pmode_t::bt_module:    LOG(card_log, s_info, F("toggle bt module from "), btModuleOn);
+                              switchBtModuleOnOff();
+                              return true;
+#endif // BT_MODULE
+
   default:                    return false;
   }
-  activeModifier->init(nfcTag.special);
+  activeModifier->init(nfcTag.mode, nfcTag.special);
   return true;
 }
 
