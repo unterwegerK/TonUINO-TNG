@@ -61,6 +61,7 @@ public:
   bool isAbort(command cmd);
 
   static folderSettings folder;
+  static const __FlashStringHelper* state_str;
 protected:
   static Timer          timer;
   static bool           waitForPlayFinish; // with this it needs 66 Byte lesser program code ;-)
@@ -77,6 +78,10 @@ protected:
   bool handleShortcut(uint8_t shortCut);
   void handleReadCard();
   bool checkForShortcutAndShutdown(command cmd);
+#ifdef TonUINO_Esp32
+  bool checkForWritingCard(command cmd, command_e const &cmd_e);
+  bool writingCard{};
+#endif
 #ifdef NEO_RING
   void handleBrightness(command cmd);
 #endif
@@ -91,7 +96,7 @@ public:
   void react(card_e    const &) override;
 };
 
-class StartPlay: public Base
+template<class P> class StartPlay: public Base
 {
 public:
   void entry() override;
@@ -425,7 +430,7 @@ public:
   void react(command_e const &) final;
 };
 
-#ifdef MEMORY_GAME
+//#ifdef MEMORY_GAME
 class Admin_MemoryGameCards: public Amin_BaseWriteCard
 {
 public:
@@ -439,7 +444,7 @@ private:
   };
   subState current_subState{};
 };
-#endif
+//#endif
 
 
 #endif /* SRC_STATE_MACHINE_HPP_ */

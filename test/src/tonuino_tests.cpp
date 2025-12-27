@@ -21,7 +21,7 @@ TEST_F(tonuino_test_fixture, initial_state) {
   EXPECT_EQ(pin_mode[shutdownPin], OUTPUT);
 
 #ifdef TonUINO_Classic
-  EXPECT_EQ(pin_value[shutdownPin], HIGH);
+  EXPECT_EQ(pin_value[shutdownPin], LOW);
 #endif
 
 #if defined ALLinONE || defined ALLinONE_Plus
@@ -91,7 +91,7 @@ TEST_F(tonuino_test_fixture, sunny_day_play) {
   Print::clear_output();
 
   card_in(card, track_count);
-  EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay>());
+  EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>());
 
   leave_start_play();
 
@@ -210,7 +210,7 @@ TEST_F(tonuino_test_fixture, shutdown_in_idle) {
   EXPECT_EQ(pin_value[shutdownPin], LOW);
 #endif
 #ifdef TonUINO_Classic
-  EXPECT_EQ(pin_value[shutdownPin], LOW);
+  EXPECT_EQ(pin_value[shutdownPin], HIGH);
 #endif
   EXPECT_TRUE(getMp3()    .called_sleep        );
   EXPECT_TRUE(getMFRC522().called_AntennaOff   );
@@ -241,7 +241,7 @@ TEST_F(tonuino_test_fixture, shutdown_in_pause) {
   EXPECT_EQ(pin_value[shutdownPin], LOW);
 #endif
 #ifdef TonUINO_Classic
-  EXPECT_EQ(pin_value[shutdownPin], LOW);
+  EXPECT_EQ(pin_value[shutdownPin], HIGH);
 #endif
   EXPECT_TRUE(getMp3()    .called_sleep        );
   EXPECT_TRUE(getMFRC522().called_AntennaOff   );
@@ -272,7 +272,7 @@ TEST_F(tonuino_test_fixture, shortcutx_in_idle) {
     // button shortcutx
     button_for_command(cmd, state_for_command::idle_pause);
 
-    EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay>());
+    EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>());
 
     leave_start_play();
 
@@ -305,7 +305,7 @@ TEST_F(tonuino_test_fixture, shortcutx_in_pause) {
     // button shortcut
     button_for_command(cmd, state_for_command::idle_pause);
 
-    EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay>());
+    EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>());
 
     leave_start_play();
 
@@ -323,6 +323,10 @@ TEST_F(tonuino_test_fixture, shortcutx_in_pause) {
 
 TEST_F(tonuino_test_fixture, shortcut3x3_in_idle) {
 
+  // reset linearAnalogKeypad from longpress
+  reset_value_for_3x3();
+  execute_cycle();
+
   uint8_t folder = 3;
   uint16_t track_count = 99;
   getMp3().set_folder_track_count(folder, track_count);
@@ -334,14 +338,14 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_idle) {
     Print::clear_output();
 
     const int address = startAddressExtraShortcuts + index * sizeof(folderSettings);
-    EEPROM_put(address, fs);
+    Settings::EEPROM_put(address, fs);
 
     set_value_for_3x3(index);
     execute_cycle();
     reset_value_for_3x3();
     execute_cycle();
 
-    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay>()) << index;
+    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>()) << index;
 
     leave_start_play();
 
@@ -363,7 +367,7 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_idle) {
     Print::clear_output();
 
     const int address = startAddressExtraShortcuts + (Buttons3x3::numLevels+index) * sizeof(folderSettings);
-    EEPROM_put(address, fs);
+    Settings::EEPROM_put(address, fs);
 
     set_value_for_3x3(index);
     execute_cycle();
@@ -372,7 +376,7 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_idle) {
     reset_value_for_3x3();
     execute_cycle();
 
-    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay>()) << index;
+    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>()) << index;
 
     leave_start_play();
 
@@ -388,6 +392,11 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_idle) {
 }
 
 TEST_F(tonuino_test_fixture, shortcut3x3_in_pause) {
+
+  // reset linearAnalogKeypad from longpress
+  reset_value_for_3x3();
+  execute_cycle();
+
   uint8_t folder = 3;
   uint16_t track_count = 99;
   getMp3().set_folder_track_count(folder, track_count);
@@ -399,14 +408,14 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_pause) {
     Print::clear_output();
 
     const int address = startAddressExtraShortcuts + index * sizeof(folderSettings);
-    EEPROM_put(address, fs);
+    Settings::EEPROM_put(address, fs);
 
     set_value_for_3x3(index);
     execute_cycle();
     reset_value_for_3x3();
     execute_cycle();
 
-    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay>()) << index;
+    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>()) << index;
 
     leave_start_play();
 
@@ -428,7 +437,7 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_pause) {
     Print::clear_output();
 
     const int address = startAddressExtraShortcuts + (Buttons3x3::numLevels+index) * sizeof(folderSettings);
-    EEPROM_put(address, fs);
+    Settings::EEPROM_put(address, fs);
 
     set_value_for_3x3(index);
     execute_cycle();
@@ -437,7 +446,7 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_pause) {
     reset_value_for_3x3();
     execute_cycle();
 
-    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay>()) << index;
+    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>()) << index;
 
     leave_start_play();
 
@@ -453,6 +462,11 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_pause) {
 }
 
 TEST_F(tonuino_test_fixture, shortcut3x3_in_play) {
+
+  // reset linearAnalogKeypad from longpress
+  reset_value_for_3x3();
+  execute_cycle();
+
   uint8_t folder = 3;
   uint16_t track_count = 99;
   getMp3().set_folder_track_count(folder, track_count);
@@ -464,14 +478,14 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_play) {
     Print::clear_output();
 
     const int address = startAddressExtraShortcuts + index * sizeof(folderSettings);
-    EEPROM_put(address, fs);
+    Settings::EEPROM_put(address, fs);
 
     set_value_for_3x3(index);
     execute_cycle();
     reset_value_for_3x3();
     execute_cycle();
 
-    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay>()) << index;
+    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>()) << index;
 
     leave_start_play();
 
@@ -493,7 +507,7 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_play) {
     Print::clear_output();
 
     const int address = startAddressExtraShortcuts + (Buttons3x3::numLevels+index) * sizeof(folderSettings);
-    EEPROM_put(address, fs);
+    Settings::EEPROM_put(address, fs);
 
     set_value_for_3x3(index);
     execute_cycle();
@@ -502,7 +516,7 @@ TEST_F(tonuino_test_fixture, shortcut3x3_in_play) {
     reset_value_for_3x3();
     execute_cycle();
 
-    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay>()) << index;
+    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>()) << index;
 
     leave_start_play();
 
@@ -819,7 +833,7 @@ TEST_F(tonuino_test_fixture, pause_if_card_removed_works) {
     Print::clear_output();
 
     card_in(card, track_count);
-    EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay>());
+    EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>());
 
     leave_start_play();
 
@@ -892,14 +906,14 @@ TEST_F(tonuino_test_fixture, pause_if_card_removed_card_out_early) {
   Print::clear_output();
 
   card_in(card, track_count);
-  EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay>());
+  EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>());
 
   // card out
   card_out();
 
   // play t_262_pling
   execute_cycle_for_ms(time_check_play);
-  EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay>());
+  EXPECT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>());
   EXPECT_TRUE(getMp3().is_playing_mp3());
   EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_262_pling));
 
@@ -1001,7 +1015,7 @@ TEST_F(tonuino_test_fixture, pause_if_card_removed_card_in_with_other) {
     Print::clear_output();
 
     card_in(data.card1, track_count);
-    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay>()) << "Index: " << ind;
+    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>()) << "Index: " << ind;
 
     leave_start_play();
 
@@ -1018,7 +1032,7 @@ TEST_F(tonuino_test_fixture, pause_if_card_removed_card_in_with_other) {
 
     // card in other card --> StartPlay
     card_in(data.card2, track_count);
-    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay>()) << "Index: " << ind;
+    ASSERT_TRUE(SM_tonuino::is_in_state<StartPlay<Play>>()) << "Index: " << ind;
 
     leave_start_play();
 

@@ -39,7 +39,7 @@ public:
     case Admin_Entry_menu_items::Admin_CardsForFolder          : return mp3Tracks::t_301_select_folder;
     case Admin_Entry_menu_items::Admin_InvButtons              : return mp3Tracks::t_933_switch_volume_intro;
     case Admin_Entry_menu_items::Admin_ResetEeprom             : return mp3Tracks::t_999_reset_ok;
-    case Admin_Entry_menu_items::Admin_LockAdmin               : return mp3Tracks::t_980_admin_lock_intro;
+    case Admin_Entry_menu_items::Admin_LockAdmin               : return mp3Tracks::t_985_admin_lock_intro;
     case Admin_Entry_menu_items::Admin_PauseIfCardRemoved      : return mp3Tracks::t_913_pause_on_card_removed;
     }
     return mp3Tracks::t_0;
@@ -286,6 +286,7 @@ public:
     execute_cycle();
     execute_cycle();
     execute_cycle();
+    execute_cycle();
 
     EXPECT_TRUE(SM_writeCard::is_in_state<finished_writeCard>());
 
@@ -356,7 +357,7 @@ TEST_F(admin_test_fixture, sunny_day_adm) {
   EXPECT_TRUE(SM_tonuino::is_in_state<Admin_LockAdmin>());
   execute_cycle_for_ms(time_check_play);
   EXPECT_TRUE(getMp3().is_playing_mp3());
-  EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_980_admin_lock_intro));
+  EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_985_admin_lock_intro));
 
   // end t_980_admin_lock_intro
   getMp3().end_track();
@@ -369,7 +370,7 @@ TEST_F(admin_test_fixture, sunny_day_adm) {
   EXPECT_TRUE(SM_tonuino::is_in_state<Admin_LockAdmin>());
   execute_cycle_for_ms(time_check_play);
   EXPECT_TRUE(getMp3().is_playing_mp3());
-  EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_981_admin_lock_disabled));
+  EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_986_admin_lock_disabled));
 
   // end t_981_admin_lock_disabled
   getMp3().end_track();
@@ -871,8 +872,14 @@ TEST_F(admin_test_fixture, Admin_ShortCut_extButtons) {
 
   Print::clear_output();
 
+  // reset linearAnalogKeypad from longpress
+  reset_value_for_3x3();
+  execute_cycle();
+
   for (const folderSettings& card: cards) {
+//    EXPECT_TRUE(false) << "card: " << static_cast<uint8_t>(card.mode);
     for (uint8_t index = 0; index < Buttons3x3::numLevels; ++index) {
+//      EXPECT_TRUE(false) << "index: " << index;
 
       getMp3().set_folder_track_count(card.folder, 10);
 
@@ -898,7 +905,7 @@ TEST_F(admin_test_fixture, Admin_ShortCut_extButtons) {
 
       folderSettings fs;
       const int address = startAddressExtraShortcuts + index * sizeof(folderSettings);
-      EEPROM_get(address, fs);
+      Settings::EEPROM_get(address, fs);
 
       EXPECT_EQ(fs, card_expected);
 
@@ -927,6 +934,10 @@ TEST_F(admin_test_fixture, Admin_ShortCut_extButtons_longPress) {
   };
 
   Print::clear_output();
+
+  // reset linearAnalogKeypad from longpress
+  reset_value_for_3x3();
+  execute_cycle();
 
   for (const folderSettings& card: cards) {
     for (uint8_t index = 0; index < Buttons3x3::numLevels; ++index) {
@@ -957,7 +968,7 @@ TEST_F(admin_test_fixture, Admin_ShortCut_extButtons_longPress) {
 
       folderSettings fs;
       const int address = startAddressExtraShortcuts + (Buttons3x3::numLevels+index) * sizeof(folderSettings);
-      EEPROM_get(address, fs);
+      Settings::EEPROM_get(address, fs);
 
       EXPECT_EQ(fs, card_expected);
 
@@ -1009,6 +1020,7 @@ TEST_F(admin_test_fixture, New_Card) {
     // wait for end t_300_new_tag
     execute_cycle_for_ms(dfPlayer_timeUntilStarts);
     getMp3().end_track();
+    execute_cycle();
     execute_cycle();
     execute_cycle();
     execute_cycle(); // --> start_setupCard
@@ -1361,7 +1373,7 @@ TEST_F(admin_test_fixture, Admin_LockAdmin) {
       button_for_command(command::next, state_for_command::admin);
       execute_cycle_for_ms(time_check_play);
       EXPECT_TRUE(getMp3().is_playing_mp3());
-      EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_980_admin_lock_intro) + m);
+      EXPECT_EQ(getMp3().df_mp3_track, static_cast<uint16_t>(mp3Tracks::t_985_admin_lock_intro) + m);
     }
     // button select --> select mode
     button_for_command(command::select, state_for_command::admin);

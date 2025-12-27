@@ -148,11 +148,14 @@ enum class mp3Tracks: uint16_t {
   t_975_modifier_KinderGarden  = 975,
   t_976_modifier_repeat1       = 976,
   t_977_modifier_bluetooth     = 977,
-  t_980_admin_lock_intro       = 980,
-  t_981_admin_lock_disabled    = 981,
-  t_982_admin_lock_card        = 982,
-  t_983_admin_lock_pin         = 983,
-  t_984_admin_lock_calc        = 984,
+  t_978_modifier_jukebox       = 978,
+  t_979_modifier_pauseAftTr    = 979,
+  t_980_modifier_disableStandby= 980,
+  t_985_admin_lock_intro       = 985,
+  t_986_admin_lock_disabled    = 986,
+  t_987_admin_lock_card        = 987,
+  t_988_admin_lock_pin         = 988,
+  t_989_admin_lock_calc        = 989,
   t_991_admin_pin              = 991,
   t_992_admin_calc             = 992,
   t_993_admin_calc             = 993,
@@ -175,9 +178,12 @@ enum class advertTracks: uint16_t {
   t_306_fire                   = 306,
   t_307_water                  = 307,
   t_308_air                    = 308,
+  t_309_jukebox                = 309,
   t_320_bt_on                  = 320,
   t_321_bt_off                 = 321,
   t_322_bt_pairing             = 322,
+  t_323_standby_timer_off      = 323,
+  t_324_standby_timer_on       = 324,
 };
 
 // implement a notification class,
@@ -203,7 +209,8 @@ public:
 
   Mp3(Settings& settings);
 
-  bool isPlaying() const;
+  void init();
+  bool isPlaying() const { return is_playing_cache; }
   void waitForTrackToFinish();
   void waitForTrackToStart();
   void playAdvertisement(uint16_t     track, bool olnyIfIsPlaying = true);
@@ -221,15 +228,18 @@ public:
   // currentTrack             -> index in queue starting with 0
   void enqueueTrack(uint8_t folder, uint8_t firstTrack, uint8_t lastTrack, uint8_t currentTrack = 0);
   void enqueueTrack(uint8_t folder, uint8_t track);
-  void setEndless() { endless = true; }
+  void setEndless(bool v = true) { endless = v; }
   void shuffleQueue();
   void enqueueMp3FolderTrack(uint16_t  track, bool playAfter = false);
   void enqueueMp3FolderTrack(mp3Tracks track, bool playAfter = false);
   void playCurrent();
   void playNext(uint8_t tracks, bool fromOnPlayFinished);
   void playPrevious(uint8_t tracks = 1);
+  void jumpTo(uint8_t track);
   uint8_t getCurrentTrack() { return playing ? q.get(current_track) : 0; }
   uint16_t getFolderTrackCount(uint16_t folder);
+  uint8_t getCurrentFolder() { return current_folder; }
+  bool isLastTrack() { return current_track+1 >= q.size(); }
 
   void start() { if (isPause) { isPause = false; Base::start();} }
   void stop () { isPause = false; Base::stop (); }
@@ -237,7 +247,7 @@ public:
 
   void increaseVolume();
   void decreaseVolume();
-  void setVolume     ();
+  bool setVolume     ();
   void setVolume     (uint8_t);
 #ifdef NEO_RING_EXT
   uint8_t getVolumeRel() const { return static_cast<uint16_t>(*volume-*minVolume)*0xff/(*maxVolume-*minVolume); }
@@ -251,14 +261,20 @@ public:
   uint8_t& getInitVolume() { return *initVolume; }
 
 #ifdef HPJACKDETECT
+  void hpjackdetect         ();
   bool isHeadphoneJackDetect() { return noHeadphoneJackDetect == level::inactive; }
-  void setTempSpkOn()          { tempSpkOn = 2; }
+  void setTempSpkOn         () { tempSpkOn = 2; }
+#endif
+
+#ifdef TonUINO_Esp32
+  String getQueue();
 #endif
 
 private:
   friend class tonuino_fixture;
 
   void logVolume();
+  void refreshIsPlaying();
 
   typedef queue<uint8_t, maxTracksInFolder> track_queue;
 
@@ -288,6 +304,8 @@ private:
   // mp3 queue
   uint16_t             mp3_track{};
   uint16_t             mp3_track_next{};
+
+  bool                 is_playing_cache{};
 
   enum play_type: uint8_t {
     play_none,

@@ -186,6 +186,7 @@ public:
 	void PCD_Init() { called_Init = true; }
   bool called_AntennaOff = false;
 	void PCD_AntennaOff() { called_AntennaOff = true; }
+  bool PCD_PerformSelfTest() { return true; }
 	
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Power control functions
@@ -239,6 +240,14 @@ public:
     memcpy(t_buffer, buffer, buffferSizeWrite);
 	  return STATUS_OK;
 	}
+	StatusCode MIFARE_Ultralight_Write(byte page, byte *buffer, byte bufferSize) {
+//    if (!called_PCD_Authenticate && blockAddr != 4 && bufferSize != buffferSizeWrite)
+//      return STATUS_ERROR;
+//    memcpy(t_buffer, buffer, buffferSizeWrite);
+	  // TODO
+    return STATUS_OK;
+	}
+
 	StatusCode PCD_NTAG216_AUTH(byte *passWord, byte pACK[]) {
 	  return STATUS_ERROR; // todo: implement UL
 	}

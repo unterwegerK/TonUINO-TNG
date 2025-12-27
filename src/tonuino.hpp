@@ -15,6 +15,12 @@
 #ifdef NEO_RING
 #include "ring.hpp"
 #endif
+#ifdef TonUINO_Esp32
+#include "webservice.hpp"
+#endif
+#ifdef USE_LED_BUTTONS
+#include "led_manager.hpp"
+#endif
 
 class Tonuino {
 public:
@@ -29,12 +35,14 @@ public:
 
   void       nextTrack(uint8_t tracks = 1, bool fromOnPlayFinished = false);
   void   previousTrack(uint8_t tracks = 1);
+  void     jumpToTrack(uint8_t track);
 
   void resetActiveModifier   () { activeModifier = &noneModifier; }
   Modifier& getActiveModifier() { return *activeModifier; }
 
   void setStandbyTimer();
   void disableStandbyTimer();
+  unsigned long getRemainingStandbyTimer() { return standbyTimer.remainingTime(); }
 
   void setMyFolder(const folderSettings &newFolder, bool a_myFolderIsCard) {
 #ifdef STORE_LAST_CARD
@@ -57,6 +65,12 @@ public:
 #ifdef NEO_RING
   Ring&     getRing     () { return ring     ; }
 #endif
+#ifdef USE_LED_BUTTONS
+  LedManager& getLedManager() { return ledManager; }
+#endif
+#ifdef BAT_VOLTAGE_MEASUREMENT
+  BatVoltage& getBatVoltage() { return batVoltage; }
+#endif
   static uint32_t generateRamdomSeed();
 
 #ifdef SerialInputAsCommand
@@ -67,17 +81,25 @@ public:
 
   uint16_t getNumTracksInFolder() const {return numTracksInFolder; }
 
+  bool specialCard(const folderSettings &nfcTag);
+
+  void set_shutdown() { request_shutdown = true; }
+
 #ifdef BT_MODULE
   bool isBtModuleOn() { return btModuleOn; }
   void switchBtModuleOnOff();
   void btModulePairing();
 #endif
 
+  void switchStandbyTimerOnOff();
+  bool isStandbyTimerOff() { return standbyTimerOff; }
+
 private:
 
-  void checkStandby();
+  void setup_timer();
+  void setup_adc();
 
-  bool specialCard(const folderSettings &nfcTag);
+  void checkStandby();
 
   Settings             settings            {};
   Mp3                  mp3                 {settings};
@@ -97,6 +119,9 @@ private:
 #ifdef POTI
   Poti                 poti                {mp3};
 #endif
+#ifdef TonUINO_Esp32
+  Webservice           webservice          {settings, mp3};
+#endif
   Commands             commands            {
                                             settings
                                           , &buttons
@@ -112,10 +137,16 @@ private:
 #ifdef POTI
                                           , &poti
 #endif
+#ifdef TonUINO_Esp32
+                                          , &webservice
+#endif
                                            };
   Chip_card            chip_card           {mp3};
 #ifdef NEO_RING
   Ring                 ring                {};
+#endif
+#ifdef USE_LED_BUTTONS
+  LedManager           ledManager          {};
 #endif
 
   friend class Base;
@@ -126,6 +157,12 @@ private:
   ToddlerMode          toddlerMode         {};
   KindergardenMode     kindergardenMode    {};
   RepeatSingleModifier repeatSingleModifier{};
+#ifdef MODIFICATION_CARD_PAUSE_AFTER_TRACK
+  PauseAfterTrack      pauseAfterTrack     {};
+#endif
+#ifdef MODIFICATION_CARD_JUKEBOX
+  JukeboxModifier      jukeboxModifier     {};
+#endif
 
   Modifier*            activeModifier      {&noneModifier};
 
@@ -135,10 +172,14 @@ private:
   bool                 myFolderIsCard      {};
   uint16_t             numTracksInFolder   {};
 
+  bool                 request_shutdown    {};
+
 #ifdef BT_MODULE
   bool                 btModuleOn          {};
   Timer                btModulePairingTimer{};
 #endif
+
+  bool                 standbyTimerOff     {};
 };
 
 #endif /* SRC_TONUINO_HPP_ */

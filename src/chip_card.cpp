@@ -10,7 +10,7 @@
 // select whether StatusCode and PiccType are printed as names
 // that uses about 690 bytes or 2.2% of flash
 constexpr bool verbosePrintStatusCode = false;
-constexpr bool verbosePrintPiccType   = false;
+constexpr bool verbosePrintPiccType   = true;
 
 namespace {
 
@@ -85,11 +85,27 @@ bool Chip_card::auth(MFRC522::PICC_Type piccType) {
     status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, trailerBlock, &key, &(mfrc522.uid));
   }
   else if (piccType == MFRC522::PICC_TYPE_MIFARE_UL ) {
-    byte pACK[] = {0, 0}; //16 bit PassWord ACK returned by the tempCard
+    byte buffer[buffferSizeRead];
 
-    // Authenticate using key A
-    LOG(card_log, s_debug, F("Auth UL"));
-    status = mfrc522.PCD_NTAG216_AUTH(key.keyByte, pACK);
+    byte size = sizeof(buffer);
+    status = static_cast<MFRC522::StatusCode>(mfrc522.MIFARE_Read(3, buffer, &size));
+    if (status != MFRC522::STATUS_OK) {
+      LOG(card_log, s_info, str_MIFARE_Read(), F("3"), str_failed(), printStatusCode(mfrc522, status));
+    }
+    else {
+      switch (buffer[2]) {
+      case 0x12: LOG(card_log, s_info, F("NTAG213")); break;
+      case 0x3e: LOG(card_log, s_info, F("NTAG215")); break;
+      case 0x6d: LOG(card_log, s_info, F("NTAG216")); break;
+      default  : LOG(card_log, s_info, F("NTAG?-"), buffer[2]); break;
+      }
+    }
+
+//    byte pACK[] = {0, 0}; //16 bit PassWord ACK returned by the tempCard
+//
+//    // Authenticate using key A
+//    LOG(card_log, s_debug, F("Auth UL"));
+//    status = mfrc522.PCD_NTAG216_AUTH(key.keyByte, pACK);
   }
 
   if (status != MFRC522::STATUS_OK) {
@@ -111,11 +127,6 @@ Chip_card::readCardEvent Chip_card::readCard(folderSettings &nfcTag) {
 
   if (not auth(piccType))
     return readCardEvent::none;
-
-  // Show the whole sector as it currently is
-  // LOG(card_log, s_info, F("Current data in sector:"));
-  // mfrc522.PICC_DumpMifareClassicSectorToSerial(&(mfrc522.uid), &key, sector);
-  // Serial.println();
 
   // Read data from the block
   if ((piccType == MFRC522::PICC_TYPE_MIFARE_MINI) ||
@@ -209,12 +220,11 @@ bool Chip_card::writeCard(const folderSettings &nfcTag) {
       LOG(card_log, s_debug, str_MIFARE_Write(), F("4"), str_failed(), printStatusCode(mfrc522, status));
   }
   else if (mifareType == MFRC522::PICC_TYPE_MIFARE_UL ) {
-    byte buffer2[buffferSizeWrite];
-    memset(buffer2, 0, sizeof(buffer2));
+    byte buffer2[4];
 
     for (byte block = 8, bufpos = 0; block <= 11; ++block, bufpos += 4) {
       memcpy(buffer2, buffer+bufpos, 4);
-      status = static_cast<MFRC522::StatusCode>(mfrc522.MIFARE_Write(block, buffer2, sizeof(buffer2)));
+      status = static_cast<MFRC522::StatusCode>(mfrc522.MIFARE_Ultralight_Write(block, buffer2, sizeof(buffer2)));
       if (status != MFRC522::STATUS_OK) {
         LOG(card_log, s_debug, str_MIFARE_Write(), block, str_failed(), printStatusCode(mfrc522, status));
         break;
@@ -238,7 +248,12 @@ void Chip_card::sleepCard() {
 void Chip_card::initCard() {
   SPI.begin();                                                    // Init SPI bus
   mfrc522.PCD_Init();                                             // Init MFRC522
-  LOG(card_log, s_info, F("MFRC522:"), mfrc522.PCD_ReadRegister(MFRC522::VersionReg));
+  LOG_CODE(card_log, s_debug, {
+      if (not mfrc522.PCD_PerformSelfTest())
+        LOG(card_log, s_debug, F("mfrc522 self test not successful"));
+  });
+  byte ver = mfrc522.PCD_ReadRegister(MFRC522::VersionReg);
+  LOG(card_log, s_info, F("MFRC522:"), ver);
   // Show MFRC522 Card Reader version
   // 0 or 255: communication  error)
   //      136: (clone)
@@ -247,6 +262,13 @@ void Chip_card::initCard() {
   //      146: v2.0
   //       18: counterfeit chip
   //     else: unknown
+  if ((ver == 0) || (ver == 255)) {
+    LOG(card_log, s_error, F("com to mfrc broken"));
+    return;
+  }
+#ifdef MRFC522_RX_GAIN
+  mfrc522.PCD_SetAntennaGain(mfrc522.MRFC522_RX_GAIN);
+#endif
 }
 
 void Chip_card::stopCard() {
@@ -271,7 +293,7 @@ cardEvent Chip_card::getCardEvent() {
 
   if (cardRemovedSwitch.on()) {
     if (not cardRemoved) {
-      LOG(card_log, s_info, F("Card Removed"));
+      LOG(card_log, s_info, F("Card Rem"));
       cardRemoved = true;
       stopCard();
       return cardEvent::removed;
@@ -279,7 +301,7 @@ cardEvent Chip_card::getCardEvent() {
   }
   else {
     if (cardRemoved) {
-      LOG(card_log, s_info, F("Card Inserted"));
+      LOG(card_log, s_info, F("Card Ins"));
       cardRemoved = false;
       return cardEvent::inserted;
     }

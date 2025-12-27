@@ -13,7 +13,7 @@ uint16_t Mp3Notify::lastTrackFinished = 0;
 
 void Mp3Notify::OnError(DfMp3&, uint16_t errorCode) {
   // see DfMp3_Error for code meaning
-  LOG(mp3_log, s_error, F("DfPlayer Error: "), errorCode);
+  LOG(mp3_log, s_error, F("DfPl Err: "), errorCode);
 }
 void Mp3Notify::OnPlaySourceOnline  (DfMp3&, DfMp3_PlaySources source) { PrintlnSourceAction(source, F("online"  )); }
 void Mp3Notify::OnPlaySourceInserted(DfMp3&, DfMp3_PlaySources source) { PrintlnSourceAction(source, F("bereit"  )); }
@@ -25,7 +25,7 @@ void Mp3Notify::PrintlnSourceAction(DfMp3_PlaySources source, const __FlashStrin
 }
 
 void Mp3Notify::OnPlayFinished(DfMp3&, DfMp3_PlaySources /*source*/, uint16_t track) {
-  LOG(mp3_log, s_info, F("Track beendet: "), track);
+  LOG(mp3_log, s_info, F("Track end: "), track);
   if (track == lastTrackFinished)
     return;
   else
@@ -62,8 +62,35 @@ Mp3::Mp3(Settings &settings)
 #endif
 }
 
-bool Mp3::isPlaying() const {
-  return !digitalRead(dfPlayer_busyPin);
+void Mp3::init() {
+  spkVolume = settings.spkInitVolume;
+#ifdef HPJACKDETECT
+  hpVolume  = settings.hpInitVolume;
+#endif
+
+  begin();
+  loop();
+
+  if (not setVolume())
+    LOG(init_log, s_error, F("Com to DFPlayer broken"));
+
+  setEq(static_cast<DfMp3_Eq>(settings.eq - 1));
+
+  startTrackTimer.start(6000); // 6 seconds
+  while (not startTrackTimer.isExpired() && (getTotalTrackCount() == 0)) {
+    delay(100);
+    loop();
+  }
+  startTrackTimer.stop();
+
+  LOG(mp3_log, s_info, F("track_count: "), getTotalTrackCount());
+  delay(1000);
+
+  loop();
+}
+
+void Mp3::refreshIsPlaying() {
+  is_playing_cache = !digitalRead(dfPlayer_busyPin);
 }
 
 void Mp3::waitForTrackToFinish() {
@@ -92,25 +119,44 @@ void Mp3::playAdvertisement(uint16_t track, bool olnyIfIsPlaying) {
   advPlaying = true;
 #endif
   if (isPlaying()) {
-    LOG(mp3_log, s_debug, F("playAdvertisement: "), track);
+    LOG(mp3_log, s_debug, F("playAdvertisement()"));
     Base::playAdvertisement(track);
   }
   else if (not olnyIfIsPlaying) {
+    LOG(mp3_log, s_debug, F("playAdvertisement: "), track);
     if (isPause) {
-      start();
+      Base::start();
+      LOG(mp3_log, s_debug, F("after start"));
     }
     else {
       Base::playFolderTrack(1, 1);
+      LOG(mp3_log, s_debug, F("after playFolderTrack"));
       delay(dfPlayer_timeUntilStarts);
+      LOG(mp3_log, s_debug, F("after delay"));
     }
     waitForTrackToStart();
-    LOG(mp3_log, s_debug, F("playAdvertisement: "), track);
+    LOG(mp3_log, s_debug, F("after waitForTrackToStart"));
+
     Base::playAdvertisement(track);
     delay(dfPlayer_timeUntilStarts);
+    LOG(mp3_log, s_debug, F("after delay"));
+
     waitForTrackToFinish(); // finish adv
+    LOG(modifier_log, s_debug, "after waitForTrackToFinish");
+
     waitForTrackToStart();  // start folder track
+    LOG(mp3_log, s_debug, F("after waitForTrackToStart()"));
+
+#ifdef DFMiniMp3_T_CHIP_MH2024K24SS_MP3_TF_16P_V3_0
+    waitForTrackToFinish();
+    LOG(modifier_log, s_debug, "after waitForTrackToFinish");
+
+    waitForTrackToStart();
+    LOG(modifier_log, s_debug, "after waitForTrackToStart");
+#endif
+
     delay(10);
-    pause();
+    Base::pause();
     loop();
   }
 }
@@ -234,6 +280,18 @@ void Mp3::playPrevious(uint8_t tracks) {
   }
 }
 
+void Mp3::jumpTo(uint8_t track) {
+#ifdef HPJACKDETECT
+  if (playing == play_folder)
+    tempSpkOn = 0;
+#endif
+  if (playing == play_folder && (track < q.size())) {
+    current_track = track;
+    LOG(mp3_log, s_debug, F("jumpTo: "), current_track);
+    playCurrent();
+  }
+}
+
 uint16_t Mp3::getFolderTrackCount(uint16_t folder)
 {
     uint16_t ret = 0;
@@ -251,6 +309,7 @@ uint16_t Mp3::getFolderTrackCount(uint16_t folder)
     LOG(mp3_log, s_debug, F("getFolderTrackCount return: "), ret);
 
 #ifdef DFMiniMp3_T_CHIP_GD3200B
+    Base::stop();
     Base::setVolume(*volume);
 #endif
 
@@ -279,20 +338,23 @@ void Mp3::decreaseVolume() {
   logVolume();
 }
 
-void Mp3::setVolume() {
-  spkVolume = settings.spkInitVolume;
-#ifdef HPJACKDETECT
-  hpVolume  = settings.hpInitVolume;
-#endif
+bool Mp3::setVolume() {
   LOG(mp3_log, s_debug, F("setVolume: "), volume);
-  uint8_t max_loop = 20; // 4 seconds
-  while((--max_loop>0) && (Base::getVolume() != *volume)) {
-    delay(100);
+  startTrackTimer.start(6000); // 6 seconds
+  while(not startTrackTimer.isExpired() && (Base::getVolume() != *volume)) {
+    delay(200);
+    loop();
     Base::setVolume(*volume);
-    delay(100);
+    delay(200);
+    loop();
   }
-  LOG(mp3_log, s_debug, F("setVolume loops: "), 20-max_loop);
+  if (not startTrackTimer.isActive()) {
+    return false;
+  } else {
+    startTrackTimer.stop();
+  }
   logVolume();
+  return true;
 }
 
 void Mp3::setVolume(uint8_t v) {
@@ -306,9 +368,9 @@ void Mp3::logVolume() {
   LOG(mp3_log, s_info, F("Volume: "), *volume);
 }
 
-void Mp3::loop() {
-
 #ifdef HPJACKDETECT
+void Mp3::hpjackdetect() {
+
   level noHeadphoneJackDetect_now = getLevel(dfPlayer_noHeadphoneJackDetectType, digitalRead(dfPlayer_noHeadphoneJackDetect));
   if (tempSpkOn)
     noHeadphoneJackDetect_now = level::active;
@@ -316,7 +378,9 @@ void Mp3::loop() {
   if (noHeadphoneJackDetect != noHeadphoneJackDetect_now) {
     noHeadphoneJackDetect = noHeadphoneJackDetect_now;
     LOG(mp3_log, s_info, F("hpJackDetect: "), noHeadphoneJackDetect == level::active ? 0 : 1);
+#ifdef SPKONOFF
     digitalWrite(ampEnablePin, getLevel(ampEnablePinType, noHeadphoneJackDetect));
+#endif
     if (isHeadphoneJackDetect()) {
       volume     = &hpVolume;
       maxVolume  = &settings.hpMaxVolume;
@@ -331,8 +395,46 @@ void Mp3::loop() {
     Base::setVolume(*volume);
     logVolume();
   }
+}
 #endif
 
+#ifdef TonUINO_Esp32
+  String Mp3::getQueue() {
+    String res;
+    constexpr uint8_t additional = 4;
+
+    if (isPlayingFolder()) {
+      uint8_t first = (current_track < additional) ? 0 : current_track-additional;
+      uint8_t last  = (current_track > q.size()-1-additional) ? q.size()-1 : current_track+additional;
+      if (first > 0)
+        res += "... ";
+      for (uint8_t t = first; t <= last; ++t) {
+        if (t == current_track)
+          res += "<b>";
+        res += String(q.get(t));
+        if (t == current_track)
+          res += "</b>";
+        res += " ";
+      }
+      if (last < q.size()-1)
+        res += "...";
+    }
+
+    return res;
+  }
+#endif
+
+
+void Mp3::loop() {
+
+  refreshIsPlaying();
+  static bool is_playing = false;
+  LOG_CODE(mp3_log, s_info, {
+    if (is_playing != is_playing_cache) {
+      is_playing = is_playing_cache;
+      LOG(mp3_log, s_info, F("isPlaying: "), is_playing);
+    }
+  } );
 
   if (not isPause && playing != play_none && startTrackTimer.isExpired() && not isPlaying()) {
     if (not missingOnPlayFinishedTimer.isActive())

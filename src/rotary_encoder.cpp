@@ -7,7 +7,7 @@
 
 volatile int8_t  RotaryEncoder::pos = 0;
 
-#ifdef ROTARY_ENCODER_USES_TIMER1
+#ifdef ROTARY_ENCODER_USES_TIMER
 volatile uint8_t RotaryEncoder::clk = 0;
 
 void RotaryEncoder::timer_loop() {
@@ -19,7 +19,7 @@ void RotaryEncoder::timer_loop() {
 }
 #endif
 
-void RotaryEncoder::changed() {
+void IRAM_ATTR RotaryEncoder::changed() {
   const uint8_t dt = digitalRead(rotaryEncoderDtPin);
   if (dt == 0)
     --pos;
@@ -35,13 +35,16 @@ RotaryEncoder::RotaryEncoder(const Settings& settings)
 , vol_timer()
 , long_timer()
 #endif
+{}
+
+void RotaryEncoder::init()
 {
   pinMode(rotaryEncoderClkPin, INPUT_PULLUP);
   pinMode(rotaryEncoderDtPin , INPUT_PULLUP);
 
-#ifndef ROTARY_ENCODER_USES_TIMER1
+#ifndef ROTARY_ENCODER_USES_TIMER
   attachInterrupt(digitalPinToInterrupt(rotaryEncoderClkPin), RotaryEncoder::changed, FALLING);
-#endif // ROTARY_ENCODER_USES_TIMER1
+#endif // ROTARY_ENCODER_USES_TIMER
 }
 
 commandRaw RotaryEncoder::getCommandRaw() {

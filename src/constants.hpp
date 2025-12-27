@@ -2,13 +2,12 @@
 #define SRC_CONSTANTS_HPP_
 
 #include <Arduino.h>
-#include "gpioHelper.hpp"
 
 // ######################################################################
 // ####### default pins #################################################
 // ######################################################################
 
-/* #### Classic/Every ######################################################################
+/* #### Classic/Every/Esp32-Nano ###########################################################
  *                         | A0| A1| A2| A3| A4| A5| A6| A7| D0| D1| D2| D3| D5| D6| D7| D8|
  * ------------------------+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
  * Com to DF Player        |   |   |   |   |   |   |   |   |RX*|TX*| RX| TX|   |   |   |   |
@@ -24,9 +23,12 @@
  * headphone jack detection|   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | x |
  * special start shortcut  |   |   |   |   |   |   | x |   |   |   |   |   |   |   |   |   |
  * bat voltage measurement |   |   |   |   |   | x |   |   |   |   |   |   |   |   |   |   |
+ * Bluetooth ON/OFF        |   |   |   |   |   |   |   |   |   |   | x*|   |   | x |   |   |
+ * Bluetooth Pairing       |   |   |   |   |   |   |   |   |   |   |   | x*|   |   |   | x |
+ * Button LED Pins         |   |   |   |   |   | P |   |   |   |   |   |   | D | U |   |   |
  * #########################################################################################
  *
- * (*) Hardware Serial on Every
+ * (*) Hardware Serial on Every/Esp32-Nano
  */
 
 /* ### AiOplus #########################################################################################
@@ -76,6 +78,9 @@
 //#define TonUINO_Every_4808
 //#define ALLinONE
 //#define ALLinONE_Plus
+//#define TonUINO_Esp32 100 // Esp32 Nano
+
+#include "gpioHelper.hpp"
 
 // ######################################################################
 
@@ -104,7 +109,7 @@
  * -1: up/downLong -2: down       -3: downLong
  * number n > 0: Springe im Voice Menü zum n-ten Eintrag und selektiere ihn
  */
-#define SerialInputAsCommand
+//#define SerialInputAsCommand
 
 // ######################################################################
 
@@ -144,6 +149,7 @@
  */
 //#define ROTARY_ENCODER_LONGPRESS
 
+#ifdef ROTARY_ENCODER
 #ifdef ALLinONE_Plus
 // if using Rotary Encoder Buchse
 //inline constexpr uint8_t   rotaryEncoderClkPin    = 31; // PE1
@@ -156,6 +162,7 @@ inline constexpr uint8_t   rotaryEncoderDtPin     = 37; // PF3
 inline constexpr uint8_t   rotaryEncoderClkPin    = A3; // A3
 inline constexpr uint8_t   rotaryEncoderDtPin     = A4; // A4
 #endif // ALLinONE_Plus
+#endif // ROTARY_ENCODER
 
 // ######################################################################
 
@@ -163,11 +170,14 @@ inline constexpr uint8_t   rotaryEncoderDtPin     = A4; // A4
  * um den Poti zu unterstützen bitte in der nächste Zeile den Kommentar entfernen
  */
 //#define POTI
+
+#ifdef POTI
 #ifdef ALLinONE_Plus
 inline constexpr uint8_t   potiPin    = A14; // AiO+ PF4
 #else
 inline constexpr uint8_t   potiPin    = A3 ; // AiO/Classic A3
 #endif // ALLinONE_Plus
+#endif // POTI
 
 // ######################################################################
 
@@ -180,20 +190,22 @@ inline constexpr uint8_t   potiPin    = A3 ; // AiO/Classic A3
 //#define NEO_RING_EXT
 //#define NEO_RING_2
 
+#ifdef NEO_RING
 #ifdef ALLinONE_Plus
 inline constexpr uint8_t neoPixelRingPin = 10; // PB2 on AiOplus (Erweiterungsleiste (Female))
 #else
-inline constexpr uint8_t neoPixelRingPin =  5; // D5 on AiO/Classic
+inline constexpr uint8_t neoPixelRingPin = D5; // D5 on AiO/Classic
 #endif // ALLinONE_Plus
 inline constexpr uint8_t neoPixelNumber  = 24; // Total Number of Pixels
 #ifdef NEO_RING_2
 #ifdef ALLinONE_Plus
 inline constexpr uint8_t neoPixelRingPin2= 14; // PC0 on AiOplus (Erweiterungsleiste (Female))
 #else
-inline constexpr uint8_t neoPixelRingPin2=  2; // D2 on AiO/Classic (only Every)
+inline constexpr uint8_t neoPixelRingPin2= D2; // D2 on AiO/Classic (only Every)
 #endif // ALLinONE_Plus
 inline constexpr uint8_t neoPixelNumber2 = 24; // Total Number of Pixels
 #endif // NEO_RING_2
+#endif // NEO_RING
 
 // ######################################################################
 
@@ -204,10 +216,13 @@ inline constexpr uint8_t neoPixelNumber2 = 24; // Total Number of Pixels
  * (automatisch eingeschaltet für AiO und AiOplus)
  */
 //#define SPKONOFF
+
+#ifdef SPKONOFF
 #if not defined(ALLinONE_Plus) and not defined(ALLinONE)
-inline constexpr uint8_t       ampEnablePin     = 6;
+inline constexpr uint8_t       ampEnablePin     = D6;
 inline constexpr levelType     ampEnablePinType = levelType::activeHigh;
 #endif
+#endif // SPKONOFF
 
 // ######################################################################
 
@@ -216,10 +231,13 @@ inline constexpr levelType     ampEnablePinType = levelType::activeHigh;
  * (automatisch eingeschaltet für AiOplus)
  */
 //#define HPJACKDETECT
+
+#ifdef HPJACKDETECT
 #ifndef ALLinONE_Plus
-inline constexpr uint8_t       dfPlayer_noHeadphoneJackDetect     = 8;
+inline constexpr uint8_t       dfPlayer_noHeadphoneJackDetect     = D8;
 inline constexpr levelType     dfPlayer_noHeadphoneJackDetectType = levelType::activeLow;
 #endif
+#endif // HPJACKDETECT
 
 // ######################################################################
 
@@ -264,6 +282,8 @@ inline constexpr levelType     dfPlayer_noHeadphoneJackDetectType = levelType::a
  * um den spezial Shortcut beim Start via GPIO zu aktivieren, in der nächste Zeile den Kommentar entfernen
  */
 //#define SPECIAL_START_SHORTCUT
+
+#ifdef SPECIAL_START_SHORTCUT
 #ifdef ALLinONE_Plus
 inline constexpr uint8_t   specialStartShortcutPin     = 33; // PE3
 #else
@@ -272,6 +292,7 @@ inline constexpr uint8_t   specialStartShortcutPin     = A6; // A6 on AiO/Classi
 inline constexpr levelType specialStartShortcutPinType = levelType::activeHigh;
 inline constexpr uint8_t   specialStartShortcutFolder  = 1;
 inline constexpr uint8_t   specialStartShortcutTrack   = 1;
+#endif // SPECIAL_START_SHORTCUT
 
 // ######################################################################
 
@@ -279,11 +300,19 @@ inline constexpr uint8_t   specialStartShortcutTrack   = 1;
  * um die Unterstützung des BT Modules zu aktivieren, in der nächste Zeile den Kommentar entfernen
  */
 //#define BT_MODULE
-inline constexpr uint8_t   btModuleOnPin               =  2; // D2
+
+#ifdef BT_MODULE
+#ifdef DFPlayerUsesHardwareSerial
+inline constexpr uint8_t   btModuleOnPin               =  D2; // D2
+inline constexpr uint8_t   btModulePairingPin          =  D3; // D3
+#else
+inline constexpr uint8_t   btModuleOnPin               =  D6; // D6
+inline constexpr uint8_t   btModulePairingPin          =  D8; // D8
+#endif
 inline constexpr levelType btModuleOnPinType           = levelType::activeHigh;
-inline constexpr uint8_t   btModulePairingPin          =  3; // D3
 inline constexpr levelType btModulePairingPinType      = levelType::activeHigh;
 inline constexpr unsigned long btModulePairingPulse    = 500;
+#endif // BT_MODULE
 
 // ######################################################################
 
@@ -292,6 +321,8 @@ inline constexpr unsigned long btModulePairingPulse    = 500;
  * (nicht für ALLinONE, nicht empfohlen für TonUINO_Classic)
  */
 //#define BAT_VOLTAGE_MEASUREMENT
+
+#ifdef BAT_VOLTAGE_MEASUREMENT
 #if not defined(ALLinONE_Plus) and not defined(ALLinONE)
 inline constexpr uint8_t voltageMeasurementPin         = A5;
 #endif // ALLinONE_Plus
@@ -308,16 +339,98 @@ inline constexpr float   voltageMeasurementCorrection  = 2.007; // Spannungsteil
 #ifdef TonUINO_Every_4808
 inline constexpr float   voltageMeasurementCorrection  = 2.007; // Spannungsteiler 100k/100k
 #endif
+#ifdef TonUINO_Esp32
+inline constexpr float   voltageMeasurementCorrection  = 0.710; // Spannungsteiler 100k/100k
+#endif
 
+// for Li-Ion
 inline constexpr float   batVoltageLow                 = 2.95;
 inline constexpr float   batVoltageEmpty               = 2.90;
+// for Li-PO
+//inline constexpr float   batVoltageLow                 = 3.40;
+//inline constexpr float   batVoltageEmpty               = 3.20;
+#endif // BAT_VOLTAGE_MEASUREMENT
 
 // ######################################################################
 
-/* uncomment the below line if you use Pololu Powerswitch for shutdown
- * wenn der Pololu Powerswitch für das Shutdown verwendet wird, in der nächste Zeile den Kommentar entfernen
+/* uncomment the below lines if you use Pololu Powerswitch or Traeger Platine for shutdown
+ * wenn der Pololu Powerswitch oder die Traeger Platine für das Shutdown verwendet wird, in den nächsten Zeile den Kommentar entfernen
  */
 //#define USE_POLOLU_SHUTDOWN
+//#define USE_TRAEGER_PLATINE_SHUTDOWN
+
+// ######################################################################
+
+/* uncomment one of the below lines if you want to change the antenna gain of the MFRC522 module
+ * wenn die Antennenverstärkung des MFRC522 Modules verändert werden soll, in der nächsten Zeilen einen Kommentar entfernen
+ */
+//#define MRFC522_RX_GAIN RxGain_18dB
+//#define MRFC522_RX_GAIN RxGain_23dB
+//#define MRFC522_RX_GAIN RxGain_33dB // default
+//#define MRFC522_RX_GAIN RxGain_38dB
+//#define MRFC522_RX_GAIN RxGain_43dB
+//#define MRFC522_RX_GAIN RxGain_48dB
+//#define MRFC522_RX_GAIN RxGain_min  // 18dB
+//#define MRFC522_RX_GAIN RxGain_avg  // 33dB
+//#define MRFC522_RX_GAIN RxGain_max  // 48dB
+
+// ######################################################################
+
+/* uncomment the below lines if you want to have the Jukebox modification card
+ * wenn du die Jukebox haben willst, in den nächsten Zeile den Kommentar entfernen
+ */
+//#define MODIFICATION_CARD_JUKEBOX
+
+#ifdef MODIFICATION_CARD_JUKEBOX
+inline constexpr uint8_t jukebox_max_cards  = 10;
+#endif
+
+// ######################################################################
+
+/* uncomment the below lines if you want to have the Pause after Track modification card
+ * wenn du die Pause nach jedem Track Modifikationskarte haben willst, in den nächsten Zeile den Kommentar entfernen
+ */
+//#define MODIFICATION_CARD_PAUSE_AFTER_TRACK
+
+// ######################################################################
+
+/* Enable this definition to activate animated LED button support via the LedManager.
+ *
+ * LED behavior:
+ * - Startup:        All LEDs blink one after another.
+ * - Awaiting input: All LEDs blink synchronously.
+ * - Playing:        All LEDs stay on continuously.
+ * - Paused:         Only the Play/Pause LED blinks.
+ * - Shutdown:       All LEDs are turned off.
+ * - On a valid button press, all LEDs blink once by toggling their current state.
+ *
+ * Use a series resistor (e.g. 1KΩ) per LED to limit current.
+ *
+ * ----------------------------------------------------------------------
+ *
+ * Nachfolgenden Kommentar entfernen, um animierte LED-Tasten über den LedManager zu nutzen.
+ *
+ * LED-Verhalten:
+ * - Beim Start:          Alle LEDs blinken nacheinander.
+ * - Wartet auf Eingabe:  Alle LEDs blinken synchron.
+ * - Wiedergabe läuft:    Alle LEDs leuchten dauerhaft.
+ * - Wiedergabe pausiert: Nur die Play/Pause-LED blinkt.
+ * - Abschaltung:         Alle LEDs werden ausgeschalten.
+ * - Bei einem gültigen Tastendruck blinken alle LEDs einmal, indem ihr aktueller Zustand invertiert wird.
+ *
+ * Verwende einen Widerstand (z.B. 1KΩ) in Reihe zu jeder LED zur Strombegrenzung.
+ */
+
+//#define USE_LED_BUTTONS
+
+#ifdef USE_LED_BUTTONS
+inline constexpr uint8_t led_play_pin = A5;
+inline constexpr uint8_t led_up_pin   = D6;
+inline constexpr uint8_t led_down_pin = D5;
+
+inline constexpr unsigned long led_update_interval = 800; // ms
+inline constexpr unsigned long led_short_blink     = 400; // ms
+#endif // USE_LED_BUTTONS
 
 /* #################################################################################################
  * ##### normally, you don't have to edit lines below                   ############################
@@ -389,7 +502,7 @@ inline constexpr levelType     dfPlayer_busyPinType     = levelType::activeHigh;
 #if defined(DFMiniMp3_T_CHIP_MH2024K24SS_MP3_TF_16P_V3_0)
 inline constexpr unsigned long dfPlayer_timeUntilStarts = 2500;
 #elif defined(DFMiniMp3_T_CHIP_GD3200B)
-inline constexpr unsigned long dfPlayer_timeUntilStarts = 1500;
+inline constexpr unsigned long dfPlayer_timeUntilStarts = 2500;
 #else
 inline constexpr unsigned long dfPlayer_timeUntilStarts = 1200;
 #endif
@@ -397,10 +510,10 @@ inline constexpr unsigned long dfPlayer_timeUntilStarts = 1200;
 // ####### tonuino #####################################
 
 inline constexpr uint8_t       shutdownPin      = 7;
-#ifdef USE_POLOLU_SHUTDOWN
-inline constexpr levelType     shutdownPinType  = levelType::activeHigh;
-#else
+#ifdef USE_TRAEGER_PLATINE_SHUTDOWN
 inline constexpr levelType     shutdownPinType  = levelType::activeLow;
+#else
+inline constexpr levelType     shutdownPinType  = levelType::activeHigh;
 #endif
 inline constexpr uint8_t       openAnalogPin    = A7;
 inline constexpr unsigned long cycleTime        = 50;
@@ -456,7 +569,7 @@ inline constexpr HardwareSerial &dfPlayer_serial         = Serial3;
 inline constexpr uint8_t        maxTracksInFolder        = 255;
 inline constexpr uint8_t        dfPlayer_busyPin         = 13;
 inline constexpr levelType      dfPlayer_busyPinType     = levelType::activeHigh;
-inline constexpr unsigned long  dfPlayer_timeUntilStarts = 1000;
+inline constexpr unsigned long  dfPlayer_timeUntilStarts = 1200;
 inline constexpr uint8_t        dfPlayer_noHeadphoneJackDetect     = 21;
 inline constexpr levelType      dfPlayer_noHeadphoneJackDetectType = levelType::activeLow;
 
@@ -522,7 +635,7 @@ inline constexpr uint8_t       dfPlayer_transmitPin     = 3;
 inline constexpr uint8_t       maxTracksInFolder        = 255;
 inline constexpr uint8_t       dfPlayer_busyPin         = 4;
 inline constexpr levelType     dfPlayer_busyPinType     = levelType::activeHigh;
-inline constexpr unsigned long dfPlayer_timeUntilStarts = 1000;
+inline constexpr unsigned long dfPlayer_timeUntilStarts = 1200;
 
 // ####### tonuino #####################################
 
@@ -535,6 +648,80 @@ inline constexpr levelType     usbAccessPinType = levelType::activeHigh;
 inline constexpr uint8_t       openAnalogPin    = A7;
 inline constexpr unsigned long cycleTime        = 50;
 #endif /* ALLinONE */
+
+/***************************************************************************
+ ** Esp32 ******************************************************************
+ ***************************************************************************/
+
+#if defined(TonUINO_Esp32)
+#if TonUINO_Esp32 == 100
+// ####### buttons #####################################
+
+inline constexpr uint8_t   buttonPausePin  = A0;
+
+#if defined(BUTTONS3X3)
+inline constexpr uint8_t   button3x3Pin    = A3;
+inline constexpr uint8_t   buttonUpPin     = A1;
+inline constexpr uint8_t   buttonDownPin   = A2;
+inline constexpr uint32_t  button3x3DbTime = 50; // Debounce time in milliseconds (default 50ms)
+#elif defined(FIVEBUTTONS)
+inline constexpr uint8_t   buttonUpPin     = A3;
+inline constexpr uint8_t   buttonDownPin   = A4;
+inline constexpr uint8_t   buttonFourPin   = A1;
+inline constexpr uint8_t   buttonFivePin   = A2;
+#else
+inline constexpr uint8_t   buttonUpPin     = A1;
+inline constexpr uint8_t   buttonDownPin   = A2;
+#endif
+
+inline constexpr levelType buttonPinType   = levelType::activeLow;
+inline constexpr uint32_t  buttonDbTime    = 25; // Debounce time in milliseconds (default 25ms)
+
+// ####### chip_card ###################################
+
+inline constexpr uint32_t cardCookie      = 0x1337b347;
+inline constexpr uint8_t  cardVersion     = 0x02;
+inline constexpr byte     mfrc522_RSTPin  =  D9;
+inline constexpr byte     mfrc522_SSPin   = D10;
+inline constexpr uint8_t  cardRemoveDelay =   3;
+
+// ####### mp3 #########################################
+
+#ifdef DFPlayerUsesHardwareSerial
+inline constexpr HardwareSerial &dfPlayer_serial         = Serial0; // D0 RX, D1 TX (Esp32)
+#else
+inline constexpr uint8_t       dfPlayer_receivePin      = D2;
+inline constexpr uint8_t       dfPlayer_transmitPin     = D3;
+#endif
+
+inline constexpr uint8_t       maxTracksInFolder        = 255;
+inline constexpr uint8_t       dfPlayer_busyPin         = D4;
+inline constexpr levelType     dfPlayer_busyPinType     = levelType::activeHigh;
+#if defined(DFMiniMp3_T_CHIP_MH2024K24SS_MP3_TF_16P_V3_0)
+inline constexpr unsigned long dfPlayer_timeUntilStarts = 2500;
+#elif defined(DFMiniMp3_T_CHIP_GD3200B)
+inline constexpr unsigned long dfPlayer_timeUntilStarts = 2500;
+#else
+inline constexpr unsigned long dfPlayer_timeUntilStarts = 1200;
+#endif
+
+// ####### tonuino #####################################
+
+inline constexpr uint8_t       shutdownPin      = D7;
+#ifdef USE_TRAEGER_PLATINE_SHUTDOWN
+inline constexpr levelType     shutdownPinType  = levelType::activeLow;
+#else
+inline constexpr levelType     shutdownPinType  = levelType::activeHigh;
+#endif
+inline constexpr uint8_t       openAnalogPin    = A7;
+inline constexpr unsigned long cycleTime        = 50;
+
+#else //  TonUINO_Esp32 == *
+static_assert(false, "Not supported Esp32 HW type");
+#endif  //  TonUINO_Esp32 == *
+
+#endif /* TonUINO_Esp32 */
+
 
 // ####### some helper fuctions #####################################
 
